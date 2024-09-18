@@ -372,7 +372,8 @@ def test_parse_expression():
 
 
 def parse(tokens):
-        return parse_expression(tokens)
+        ast , tokens = parse_expression(tokens)
+        return ast
     
 def test_parse():
     print("testing parse")

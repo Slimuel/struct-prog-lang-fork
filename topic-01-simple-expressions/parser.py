@@ -304,7 +304,7 @@ def parse_boolean_term(tokens):
     boolean_term == comparison_expression { "and" comparison_expression }
     """
     node, tokens = parse_comparison_expression(tokens)
-    while tokens[0]["tag"] in ["and"]:
+    while tokens[0]["tag"] in ["&&"]:
         tag = tokens[0]["tag"]
         right_node, tokens = parse_comparison_expression(tokens[1:])
         node = {"tag": tag, "left": node, "right": right_node}
@@ -320,12 +320,12 @@ def test_parse_boolean_term():
             "right": {"position": 2, "tag": "number", "value": 3},
             "tag": op,
         }
-    tokens = tokenize(f"2and3")
+    tokens = tokenize(f"2&&3")
     ast, tokens = parse_boolean_term(tokens)
     assert ast == {
-        "tag": "and",
+        "tag": "&&",
         "left": {"tag": "number", "value": 2, "position": 0},
-        "right": {"tag": "number", "value": 3, "position": 4},
+        "right": {"tag": "number", "value": 3, "position": 3},
     }
 
 def parse_boolean_expression(tokens):
@@ -333,7 +333,7 @@ def parse_boolean_expression(tokens):
     boolean_expression == boolean_term { "or" boolean_term }
     """
     node, tokens = parse_boolean_term(tokens)
-    while tokens[0]["tag"] in ["or"]:
+    while tokens[0]["tag"] in ["||"]:
         tag = tokens[0]["tag"]
         right_node, tokens = parse_boolean_term(tokens[1:])
         node = {"tag": tag, "left": node, "right": right_node}
@@ -350,10 +350,10 @@ def test_parse_boolean_expression():
             "right": {"position": 2, "tag": "number", "value": 3},
             "tag": op,
         }
-    tokens = tokenize(f"2or3")
+    tokens = tokenize(f"2||3")
     ast, tokens = parse_boolean_expression(tokens)
     assert ast == {
-        "tag": "or",
+        "tag": "||",
         "left": {"tag": "number", "value": 2, "position": 0},
         "right": {"tag": "number", "value": 3, "position": 3},
     }
@@ -368,10 +368,10 @@ def test_parse():
     tokens = tokenize("2+3*4+5")
     ast, _ = parse_boolean_expression(tokens)
     assert parse(tokens) == ast
-    tokens = tokenize("1*2<3*4or5>6and7")
+    tokens = tokenize("1*2<3*4||5>6&&7")
     ast = parse(tokens)
     assert ast == {
-        "tag": "or",
+        "tag": "||",
         "left": {
             "tag": "<",
             "left": {
@@ -386,13 +386,13 @@ def test_parse():
             },
         },
         "right": {
-            "tag": "and",
+            "tag": "&&",
             "left": {
                 "tag": ">",
                 "left": {"tag": "number", "value": 5, "position": 9},
                 "right": {"tag": "number", "value": 6, "position": 11},
             },
-            "right": {"tag": "number", "value": 7, "position": 15},
+            "right": {"tag": "number", "value": 7, "position": 14},
         },
     }
 

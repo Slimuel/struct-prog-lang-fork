@@ -9,8 +9,8 @@ Accept a string of tokens, return an AST expressed as stack of dictionaries
     term = factor { "*"|"/" factor }
     arithmetic_expression = term { "+"|"-" term }
     comparison_expression == arithmetic_expression [ "==" | "!=" | "<" | ">" | "<=" | ">="  arithmetic expression ]
-    boolean_term == comparison_expression { "and" comparison_expression }
-    boolean_expression == boolean_term { "or" boolean_term }
+    boolean_term == comparison_expression { "&&" comparison_expression }
+    boolean_expression == boolean_term { "||" boolean_term }
     expression = boolean_expression
 """
 
@@ -330,7 +330,7 @@ def test_parse_boolean_term():
 
 def parse_boolean_expression(tokens):
     """
-    boolean_expression == boolean_term { "or" boolean_term }
+    boolean_expression == boolean_term { "||" boolean_term }
     """
     node, tokens = parse_boolean_term(tokens)
     while tokens[0]["tag"] in ["||"]:

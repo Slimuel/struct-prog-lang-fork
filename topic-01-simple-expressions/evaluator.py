@@ -60,12 +60,6 @@ def evaluate(ast, environment):
         left_value, _ = evaluate(ast["left"], environment)
         right_value, _ = evaluate(ast["right"], environment)
         return left_value != right_value, False
-    if ast["tag"] == "print":
-        if ast["value"]:
-            value, _ = evaluate(ast["value"], environment)
-            print(value)
-        else:
-            print
     assert False, "Unknown operator in AST"
 
 def equals(code, environment, expected_result, expected_environment=None):

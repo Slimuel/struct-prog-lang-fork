@@ -12,8 +12,6 @@ Accept a string of tokens, return an AST expressed as stack of dictionaries
     boolean_term == comparison_expression { "&&" comparison_expression }
     boolean_expression == boolean_term { "||" boolean_term }
     expression = boolean_expression
-    statemnt = print_statement |
-               expression
 """
 
 from pprint import pprint
@@ -360,58 +358,9 @@ def test_parse_boolean_expression():
         "right": {"tag": "number", "value": 3, "position": 3},
     }
 
-def parse_expression(tokens):
-    return parse_boolean_expression(tokens)
-
-def parse_print_statement(tokens):
-    assert tokens[0]["tag"] == "print"
-    assert tokens[1]["tag"] == "(" 
-    tokens = tokens[2:]
-    if tokens[0]["tag"] != ")":
-        expression, _ = parse_expression(tokens)
-    else:
-        expression = None
-    assert tokens[0]["tag"] == ")"
-    node = {
-        "tag": "print", 
-        "value": expression, 
-    }
-    return node, tokens[1:]
-
-def test_parse_print_statement():
-    tokens = tokenize("print(1)")
-    ast = parse_print_statement(tokens)
-    print(ast)
-    exit()
-
-def parse_statement(tokens):
-    """
-    statement = print_statement |
-                expression
-    """
-    if tokens[0]["tag"] == "print":
-        return parse_print_statement(tokens)
-    return parse_expression(tokens)
-
-def test_parse_statement():
-    tokens = tokenize("2+3*4+5")
-    ast, tokens = parse_arithmetic_expression(tokens)
-    assert ast == {
-        "left": {
-            "left": {"position": 0, "tag": "number", "value": 2},
-            "right": {
-                "left": {"position": 2, "tag": "number", "value": 3},
-                "right": {"position": 4, "tag": "number", "value": 4},
-                "tag": "*",
-            },
-            "tag": "+",
-        },
-        "right": {"position": 6, "tag": "number", "value": 5},
-        "tag": "+",
-    }
 
 def parse(tokens):
-    ast, tokens = parse_statement(tokens)
+    ast, tokens = parse_boolean_expression(tokens)
     return ast 
 
 def test_parse():
@@ -457,6 +406,4 @@ if __name__ == "__main__":
     test_parse_boolean_term()
     test_parse_boolean_expression()
     test_parse()
-    test_parse_statement()
-    test_parse_print_statement()
     print("done")

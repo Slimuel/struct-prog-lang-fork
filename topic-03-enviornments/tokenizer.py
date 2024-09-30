@@ -31,6 +31,7 @@ patterns = [
     ["\\&\\&", "&&"],
     ["\\|\\|", "||"],
     ["!", "!"],
+    ["[A-Za-z_][A-Za-z0-9_]*", "identifier"]
 ]
 
 for pattern in patterns:
@@ -89,7 +90,14 @@ def test_simple_tokens():
         assert tokens[0]["tag"] == "number"
         assert tokens[0]["value"] == float(number)
 
+def test_identifier_tokens():
+    for s in ["X", "_", "x"]:
+        tokens = tokenize(s)
+        assert tokens[0]["tag"] == "identifier"
+        print([tokens])
+        #assert tokens[0]["value"] == s
 
 if __name__ == "__main__":
     test_simple_tokens()
+    test_identifier_tokens()
     print("done.")

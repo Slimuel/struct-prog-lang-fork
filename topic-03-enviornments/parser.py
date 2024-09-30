@@ -5,7 +5,7 @@ parser.py -- implement parser for simple expressions
 Accept a string of tokens, return an AST expressed as stack of dictionaries
 """
 """
-    simple_expression = number | "(" expression ")" | "-" simple_expression
+    simple_expression = number | identifier | "(" expression ")" | "-" simple_expression
     factor = simple_expression
     term = factor { "*"|"/" factor }
     arithmetic_expression = term { "+"|"-" term }
@@ -14,8 +14,9 @@ Accept a string of tokens, return an AST expressed as stack of dictionaries
     boolean_expression == boolean_term { "||" boolean_term }
     expression = boolean_expression
     print_statement = "print" "(" expression ")"
+    assignment_statement = expression 
     statement = print_statement |
-                expression
+                assignment_expression
 """
 
 from pprint import pprint
@@ -24,9 +25,11 @@ from tokenizer import tokenize
 
 def parse_simple_expression(tokens):
     """
-    simple_expression = number | "(" expression ")" | "-" simple_expression
+    simple_expression = number | identifier | "(" expression ")" | "-" simple_expression
     """
     if tokens[0]["tag"] == "number":
+        return tokens[0], tokens[1:]
+    if tokens[0]["tag"] == "identifier":
         return tokens[0], tokens[1:]
     if tokens[0]["tag"] == "(":
         node, tokens = parse_expression(tokens[1:])
@@ -37,13 +40,9 @@ def parse_simple_expression(tokens):
         node = {"tag":"negate", "value":node}
         return node, tokens
 
-
-def parse_expression(tokens):
-    return parse_simple_expression(tokens)
-
 def test_parse_simple_expression():
     """
-    simple_expression = number | "(" expression ")" | "-" simple_expression
+    simple_expression = number | identifier | "(" expression ")" | "-" simple_expression
     """
     print("testing parse_simple_expression")
     tokens = tokenize("2")
@@ -70,6 +69,11 @@ def test_parse_simple_expression():
         "value": {"position": 2, "tag": "number", "value": 2},
     }
     # pprint(ast)
+    tokens = tokenize("X") 
+    print(tokens)
+    ast, tokens = parse_simple_expression(tokens)
+    assert ast["tag"] == "identifier"
+    assert ast["value"] == "X"
 
 def parse_factor(tokens):
     """
@@ -307,16 +311,47 @@ def test_parse_print_statement():
     }
 
 def parse_expression(tokens):
+    '''
+    expression = boolean_expression
+    '''
     return parse_boolean_expression(tokens)
+
+def test_parse_expression():
+    print("test parse_expression")
+    tokens = tokenize("4>2+3||4&&6")
+    ast1, _ = parse_expression(tokens)
+    ast2, _ = parse_boolean_expression(tokens)
+    assert ast1 == ast2 
+
+def parse_assignment_statement(tokens):
+    '''
+    assignment_statement = expression 
+    ''' 
+    node, tokens = parse_expression(tokens)
+    if tokens[0]["tag"] == "=":
+        tag = tokens[0]["tag"]
+        value, tokens = parse_arithmetic_expression(tokens[1:])
+        node = {"tag": tag, "target": node, "value": value}
+    return node, tokens 
+
+def test_parse_assignment_statement():
+    print("test parse_assignment_statement")
+    tokens = tokenize("3=4")
+    ast, _ = parse_assignment_statement(tokens)
+    assert ast == {
+        'tag': '=', 
+        'target': {'tag': 'number', 'value': 3, 'position': 0}, 
+        'value': {'tag': 'number', 'value': 4, 'position': 2}
+    }
 
 def parse_statement(tokens):
     """
     statement = print_statement |
-                expression
+                assignment_statement
     """
     if tokens[0]["tag"] == "print":
-        return parse_print_statement(tokens)    
-    return parse_expression(tokens)
+        return parse_print_statement(tokens)   
+    return parse_assignment_statement(tokens)
 
 def test_parse_statement():
     print("testing parse_statement")
@@ -369,7 +404,9 @@ if __name__ == "__main__":
     test_parse_comparison_expression()
     test_parse_boolean_term()
     test_parse_boolean_expression()
+    test_parse_expression()
     test_parse_print_statement()
+    test_parse_assignment_statement()
     test_parse_statement()
     test_parse()
     print("done")

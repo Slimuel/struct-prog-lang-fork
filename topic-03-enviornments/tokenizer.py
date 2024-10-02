@@ -31,7 +31,8 @@ patterns = [
     ["\\&\\&", "&&"],
     ["\\|\\|", "||"],
     ["!", "!"],
-    ["[A-Za-z_][A-Za-z0-9_]*", "identifier"]
+    ["[A-Za-z_][A-Za-z0-9_]*", "identifier"],
+    [";", ";"]
 ]
 
 for pattern in patterns:

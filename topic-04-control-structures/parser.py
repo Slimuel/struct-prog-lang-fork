@@ -13,8 +13,10 @@ Accept a string of tokens, return an AST expressed as stack of dictionaries
     boolean_expression == boolean_term { "||" boolean_term }
     expression = boolean_expression
     print_statement = "print" "(" expression ")"
+    if_statement = "if" (" boolean_ expression ")" statement { "else" statement }
     assignment_statement = expression
     statement = print_statement |
+                if_statement |
                 assignment_expression
     statement_list = statement { ";" statement } {";"}
     program = statement_list

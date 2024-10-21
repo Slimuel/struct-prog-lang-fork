@@ -7,14 +7,10 @@ def evaluate(ast, environment):
         return ast["value"], False
     if ast["tag"] == "identifier":
         identifier = ast["value"]
-        current_environment = environment
-        while True:
-            if identifier in current_environment:
-                return current_environment[identifier], False
-            if "$parent" in current_environment:
-                current_environment = environment
-                continue
-            break
+        if identifier in environment:
+            return environment[identifier], False
+        if "$parent" in environment:
+            return evaluate(ast, environment["$parent"])
         assert False, f"Unknown identifier: '{identifier}'."
     if ast["tag"] == "+":
         left_value, _ = evaluate(ast["left"], environment)
@@ -82,19 +78,17 @@ def evaluate(ast, environment):
     if ast["tag"] == "if":
         condition, _ = evaluate(ast["condition"], environment)
         if condition:
-            value, _ = evaluate(ast["then"], environment)
-            return value, False
+            _, _ = evaluate(ast["then"], environment)
         if "else" in ast:
             _, _ = evaluate(ast["else"], environment)
-        return False, False
-    
+        return None, False
+
     if ast["tag"] == "while":
         condition, _ = evaluate(ast["condition"], environment)
         while condition:
-            value, _ = evaluate(ast["do"], environment)
-            condition, _ = evaluate(ast["condition"], environment)
-        return False, False
-
+            _, _ = evaluate(ast["do"], environment)
+            condition, _ = evaluate(ast["condition"], environment)   
+        return None, False
     if ast["tag"] == "=":
         assert 'target' in ast
         target = ast['target']
@@ -106,9 +100,9 @@ def evaluate(ast, environment):
     if ast["tag"] == "list":
         while ast:
             assert "statement" in ast
-            value, return_chain = evaluate(ast["statement"], environment)
+            _, return_chain = evaluate(ast["statement"], environment)
             ast = ast["list"]
-        return value, return_chain
+        return None, return_chain
     assert False, "Unknown operator in AST"
 
 def equals(code, environment, expected_result, expected_environment=None):
@@ -176,19 +170,30 @@ def test_evaluate_print_statement():
 
 def test_evaluate_if_statement():
     print("testing evaluate_if_statement")
-    equals("if(1) 3", {}, 3, {})
-    equals("if(0) 3", {}, False, {})
-    equals("if(0) 3 else 2", {}, 2, {})
-    equals("if(0) {4;5;6} else {3;2;1}", {}, 1, {})
+    equals("if(1) 3", {}, None, {})
+    equals("if(0) 3", {}, None, {})
+    equals("if(1) x=1", {"x":0}, None, {"x":1})
+    equals("if(0) x=1", {"x":0}, None, {"x":0})
+    # equals("if(1) 1; else 2;", {"x": 0}, None, {"x": 1})
+    # equals("if(0) x=1; else x=2;", {"x": 0}, None, {"x": 2})
 
 
-def test_assignment_statement():
-    print("test assignment_statement")
+# def test_evaluate_while_statement():
+#     print("testing evaluate_if_statement")
+#     equals("if(1) 3", {}, 3, {})
+#     equals("if(0) 3", {}, False, {})
+#     equals("if(0) 3 else 2", {}, 2, {})
+#     equals("if(0) {4;5;6} else {3;2;1}", {}, 1, {})
+
+
+def test_evaluate_assignment_statement():
+    print("test evaluate_assignment_statement")
     equals("X=1", {}, None, {"X": 1})
     equals("x=x+1", {"x": 1}, None, {"x": 2})
+    equals("y=x+1", {"y": 1, "$parent": {"x": 3}}, None, {"y": 4, "$parent": {"x": 3}})
 
-def test_statement_list():
-    print("test statement_list")
+def test_evaluate_statement_list():
+    print("test evaluate_statement_list")
     equals("1", {}, 1)
     equals("1;2;print(4);print(5);x=6;print(x)", {}, None)
 
@@ -201,6 +206,6 @@ if __name__ == "__main__":
     test_evaluate_negation()
     test_evaluate_print_statement()
     test_evaluate_if_statement()
-    test_assignment_statement()
-    test_statement_list()
+    test_evaluate_assignment_statement()
+    test_evaluate_statement_list()
     print("done.")

@@ -7,8 +7,15 @@ def evaluate(ast, environment):
         return ast["value"], False
     if ast["tag"] == "identifier":
         identifier = ast["value"]
-        assert identifier in environment, f"Unknown identifier: '{identifier}'."
-        return environment[identifier], False
+        current_environment = environment
+        while True:
+            if identifier in current_environment:
+                return current_environment[identifier], False
+            if "$parent" in current_environment:
+                current_environment = environment
+                continue
+            break
+        assert False, f"Unknown identifier: '{identifier}'."
     if ast["tag"] == "+":
         left_value, _ = evaluate(ast["left"], environment)
         right_value, _ = evaluate(ast["right"], environment)
@@ -78,8 +85,14 @@ def evaluate(ast, environment):
             value, _ = evaluate(ast["then"], environment)
             return value, False
         if "else" in ast:
-            value, _ = evaluate(ast["else"], environment)
-            return value, False
+            _, _ = evaluate(ast["else"], environment)
+        return False, False
+    
+    if ast["tag"] == "while":
+        condition, _ = evaluate(ast["condition"], environment)
+        while condition:
+            value, _ = evaluate(ast["do"], environment)
+            condition, _ = evaluate(ast["condition"], environment)
         return False, False
 
     if ast["tag"] == "=":

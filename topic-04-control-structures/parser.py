@@ -416,6 +416,9 @@ def test_parse_if_statement():
         },
     }
 
+def parse_while_statement(tokens):
+    tokens = tokens[1:]
+
 def parse_assignment_statement(tokens):
     """
     assignment_statement = expression
@@ -455,8 +458,8 @@ def parse_statement(tokens):
         return parse_print_statement(tokens) 
     if tokens[0]["tag"] == "if":
         return parse_if_statement(tokens)
-#    if tokens[0]["tag"] == "while":
-#        return parse_while_statement(tokens)
+    if tokens[0]["tag"] == "while":
+       return parse_while_statement(tokens)
     if tokens[0]["tag"] == "{":
         ast, tokens = parse_statement_list(tokens[1:])
         assert tokens[0]["tag"] == "}"

@@ -10,6 +10,9 @@ def evaluate(ast, environment):
             int,
         ], f"unexpected numerical type {type(ast["value"])}"
         return ast["value"], False
+    if ast["tag"] == "string": 
+        assert type(ast["value"]) in [str], f"unexpected numerical type {type(ast["value"])}"
+        return ast["value"], False
     if ast["tag"] == "identifier":
         identifier = ast["value"]
         if identifier in environment:
@@ -158,6 +161,23 @@ def evaluate(ast, environment):
             return value, False
         else:
             return None, False
+        
+    if ast["tag"] == "complex":
+        pprint(ast)
+        base, _ = evaluate(ast["base"], environment)
+        index, _ = evaluate(ast["index"], environment)
+        if index == None:
+            return base, False # might revisit
+        if type(index) in [int, float]:
+            assert int(index) == index 
+            assert type(base) == list
+            assert len(base) > index
+            return base[index], False
+        if type(index) == str:
+            assert type(base) == dict
+            # assert index in base.keys()
+            return base[index], False
+        assert False, f"Unknown index type [{index}]"
 
     assert False, f"Unknown operator [{ast['tag']}] in AST"
 
@@ -183,6 +203,20 @@ def equals(code, environment, expected_result, expected_environment=None):
         {[environment]}."""
 
 
+def test_evaluate_complex_expression():
+    environment = {"x":[2,4,6,8]}
+    code = "x[3]"
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == 8
+
+    environment = {"x":{"a" : [1, 2, 3], "b" : 4}}
+    code = 'x["a"][2]'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == 3
+    
+
 def test_evaluate_single_value():
     print("test evaluate single value")
     equals("4", {}, 4, {})
@@ -190,6 +224,8 @@ def test_evaluate_single_value():
     equals("4.2", {}, 4.2, {})
     equals("X", {"X": 1}, 1)
     equals("Y", {"X": 1, "Y": 2}, 2)
+    equals('"y"', {"x": "cat", "y" : 2}, "x")
+    equals("x", {"x": "cat", "y" : 2}, "cat")
 
 
 def test_evaluate_addition():
@@ -335,6 +371,7 @@ def test_evaluate_function_call():
 
 if __name__ == "__main__":
     # blocks and programs are tested implicitly
+    test_evaluate_complex_expression()
     test_evaluate_single_value()
     test_evaluate_addition()
     test_evaluate_subtraction()

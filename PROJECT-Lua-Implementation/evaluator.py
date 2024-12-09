@@ -13,6 +13,20 @@ def evaluate(ast, environment):
     if ast["tag"] == "string":
         assert type(ast["value"]) == str, f"unexpected type {type(ast["value"])}"
         return ast["value"], False
+    if ast["tag"] == "list":
+        items = []
+        for item in ast["items"]:
+            result, _ = evaluate(item, environment)
+            items.append(result)
+        return items, False        
+    if ast["tag"] == "object":
+        object = {}
+        for item in ast["items"]:
+            key, _ = evaluate(item["key"], environment)
+            assert type(key) is str, "Object key must be a string"
+            value, _ = evaluate(item["value"], environment)
+            object[key] = value
+        return object, False        
     if ast["tag"] == "identifier":
         identifier = ast["value"]
         if identifier in environment:
@@ -80,9 +94,10 @@ def evaluate(ast, environment):
         if ast["value"]:
             value, _ = evaluate(ast["value"], environment)
             print(value)
+            return str(value) + "\n", False
         else:
             print()
-        return None, False
+        return "\n", False
 
     if ast["tag"] == "if":
         condition, _ = evaluate(ast["condition"], environment)
@@ -110,18 +125,7 @@ def evaluate(ast, environment):
                 return condition_value, return_chain
         return None, False
 
-    if ast["tag"] == "assign":
-        assert "target" in ast
-        target = ast["target"]
-        assert target["tag"] == "identifier"
-        identifier = target["value"]
-        value, return_chain = evaluate(ast["value"], environment)
-        if return_chain:
-            return value, return_chain
-        environment[identifier] = value
-        return None, False
-
-    if ast["tag"] == "block":
+    if ast["tag"] == "statement_list":
         for statement in ast["statements"]:
             value, return_chain = evaluate(statement, environment)
             if return_chain:
@@ -136,13 +140,10 @@ def evaluate(ast, environment):
         return value, return_chain
 
     if ast["tag"] == "function":
-        # pprint(ast)
         return ast, False
 
     if ast["tag"] == "call":
-        print(ast)
         function, _ = evaluate(ast["function"], environment)
-        print(function["parameters"])
         local_environment = {}
         argument_values = []
         for argument in ast["arguments"]:
@@ -154,7 +155,6 @@ def evaluate(ast, environment):
             parameter_identifiers.append(identifier)
         p = list(zip(parameter_identifiers, argument_values))
         for identifier, value in p:
-            print(identifier, value)
             local_environment[identifier] = value
         local_environment["$parent"] = environment
         value, return_chain = evaluate(function["body"], local_environment)
@@ -164,11 +164,11 @@ def evaluate(ast, environment):
             return None, False
 
     if ast["tag"] == "complex":
-        pprint(ast)
+        print(ast)
         base, _ = evaluate(ast["base"], environment)
         index, _ = evaluate(ast["index"], environment)
         if index == None:
-            return base, False # might revisit? 
+            return base, False
         if type(index) in [int, float]:
             assert int(index) == index
             assert type(base) == list
@@ -176,10 +176,46 @@ def evaluate(ast, environment):
             return base[index], False
         if type(index) == str:
             assert type(base) == dict
-            # assert index in base.keys()
             return base[index], False
         assert False, f"Unknown index type [{index}]"
-    assert False, f"Unknown operator [{ast['tag']}] in AST"
+
+    if ast["tag"] == "assign":
+        assert "target" in ast
+        target = ast["target"]
+        if target["tag"] == "identifier":
+            target_base = environment
+            target_index = target["value"] 
+        elif target["tag"] == "complex":
+            base, _ = evaluate(target["base"], environment)
+            print(f"Target Base = {[base]}")
+            index, _ = evaluate(target["index"], environment)
+            print(f"Target Index = {[index]}")
+            assert type(index) in [int, float, str], f"Unknown index type [{index}]"
+            if type(index) in [int, float]:
+                assert int(index) == index
+                assert type(base) == list
+                assert len(base) > index
+                target_base = base
+                target_index = index
+            if type(index) in [str]:
+                assert type(base) == dict
+                target_base = base
+                target_index = index
+        else:
+            assert False, f"Unknown target type in assignment. {target}"
+        value, return_chain = evaluate(ast["value"], environment)
+        if return_chain:
+            return value, return_chain
+        target_base[target_index] = value
+        return None, False
+
+    if ast["tag"] == "return":
+        if "value" in ast:
+            value, return_chain = evaluate(ast["value"], environment)
+            return value, True
+        return None, True
+
+    assert False, f"Unknown tag [{ast['tag']}] in AST"
 
 
 def equals(code, environment, expected_result, expected_environment=None):
@@ -202,46 +238,6 @@ def equals(code, environment, expected_result, expected_environment=None):
         -- got --
         {[environment]}."""
 
-def test_evaluate_complex_expression():
-    environment = {"x":[2,4,6,8]}
-    code = "x[3]"
-    ast = parse(tokenize(code))
-    result, _ = evaluate(ast, environment)
-    assert result == 8
-
-    environment = {"x":{"a":3, "b":4}}
-    code = 'x["b"]'
-    ast = parse(tokenize(code))
-    result, _ = evaluate(ast, environment)
-    assert result == 4
-
-    environment = {"x": {"a": [1,2,3], "b": 4}}
-    code = 'x["a"]'
-    ast = parse(tokenize(code))
-    result, _ = evaluate(ast, environment)
-    assert result == [1,2,3]
-
-    environment = {"x": {"a": [1, 2, 3], "b": 4}}
-    code = 'x["a"][2]'
-    ast = parse(tokenize(code))
-    result, _ = evaluate(ast, environment)
-    assert result == 3
-    print(result)
-
-    environment = {"x": [[1, 2], [3, 4]]}
-    code = "x[0][1]"
-    ast = parse(tokenize(code))
-    result, _ = evaluate(ast, environment)
-    assert result == 2
-    print(result)
-
-    environment = {"x": {"a": {"x": 4, "y": 6}, "b": {"x": 5, "y": 7}}}
-    code = 'x["b"]["y"]'
-    ast = parse(tokenize(code))
-    result, _ = evaluate(ast, environment)
-    assert result == 7
-    print(result)
-
 
 def test_evaluate_single_value():
     print("test evaluate single value")
@@ -250,8 +246,8 @@ def test_evaluate_single_value():
     equals("4.2", {}, 4.2, {})
     equals("X", {"X": 1}, 1)
     equals("Y", {"X": 1, "Y": 2}, 2)
-    equals('"x"',{"x":"cat","y":2},"x")
-    equals("x", {"x": "cat", "y": 2},"cat")
+    equals('"x"', {"x": "cat", "y": 2}, "x")
+    equals('x', {"x": "cat", "y": 2}, "cat")
 
 
 def test_evaluate_addition():
@@ -290,10 +286,10 @@ def test_evaluate_negation():
 
 def test_evaluate_print_statement():
     print("test evaluate_print_statement")
-    equals("print 77", {}, None, {})
-    equals("print", {}, None, {})
-    equals("print 50+7", {}, None, {})
-    equals("print 50+8", {}, None, {})
+    equals("print", {}, "\n", {})
+    equals("print 1", {}, "1\n", {})
+    equals("print 1+1", {}, "2\n", {})
+    equals("print 1+1+1", {}, "3\n", {})
 
 
 def test_evaluate_if_statement():
@@ -324,6 +320,29 @@ def test_evaluate_assignment_statement():
         {"y": 1, "x": 4, "$parent": {"x": 3}},
     )
 
+def test_evaluate_list_literal():
+    print("test evaluate_list_literal")
+    environment = {}
+    code = '[1,2,3]'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == [1,2,3]
+    code = '[]'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == []
+
+def test_evaluate_object_literal():
+    print("test evaluate_object_literal")
+    environment = {}
+    code = '{"a":1,"b":2}'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == {"a":1,"b":2}
+    code = '{}'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == {}
 
 def test_evaluate_function_literal():
     print("test evaluate_function_literal")
@@ -336,7 +355,7 @@ def test_evaluate_function_literal():
                 "tag": "function",
                 "parameters": [{"tag": "identifier", "value": "x", "position": 11}],
                 "body": {
-                    "tag": "block",
+                    "tag": "statement_list",
                     "statements": [{"tag": "number", "value": 1}],
                 },
             }
@@ -351,7 +370,7 @@ def test_evaluate_function_literal():
                 "tag": "function",
                 "parameters": [{"tag": "identifier", "value": "x", "position": 11}],
                 "body": {
-                    "tag": "block",
+                    "tag": "statement_list",
                     "statements": [{"tag": "number", "value": 1}],
                 },
             }
@@ -361,43 +380,144 @@ def test_evaluate_function_literal():
 
 def test_evaluate_function_call():
     print("test evaluate_function_call")
-    # environment = {}
-    # code = "function f() {print(1234)}"
-    # result, _ = evaluate(parse(tokenize(code)), environment)
-    # assert environment == {
-    #     "f": {
-    #         "body": {
-    #             "statements": [
-    #                 {"tag": "print", "value": {"tag": "number", "value": 1234}}
-    #             ],
-    #             "tag": "block",
-    #         },
-    #         "parameters": [],
-    #         "tag": "function",
-    #     }
-    # }
-    # ast = parse(tokenize("f()"))
-    # assert ast == {
-    #     "statements": [
-    #         {
-    #             "arguments": [],
-    #             "function": {"tag": "identifier", "value": "f"},
-    #             "tag": "call",
-    #         }
-    #     ],
-    #     "tag": "program",
-    # }
-    # result, _ = evaluate(ast, environment)
-    # # visual observe "1234"
+    environment = {}
+    code = "function f() {return(1234)}"
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    assert environment == {
+        "f": {
+            "body": {
+                "statements": [
+                    {"tag": "return", "value": {"tag": "number", "value": 1234}}
+                ],
+                "tag": "statement_list",
+            },
+            "parameters": [],
+            "tag": "function",
+        }
+    }
+    ast = parse(tokenize("f()"))
+    assert ast == {
+        "statements": [
+            {
+                "arguments": [],
+                "function": {"tag": "identifier", "value": "f"},
+                "tag": "call",
+            }
+        ],
+        "tag": "program",
+    }
+    result, _ = evaluate(ast, environment)
+    assert result == 1234
+    print("a")
 
     environment = {}
-    code = "x = 3; function f() {print(x)}; function g(q) {f();print(q)}"
+    code = """
+        x = 3; 
+        function f() 
+            {return(x)};
+        function g(q)
+            {return 2};
+        g(4)
+        """
+    code = """
+        x = 3; 
+        function g(q)
+            {return 2};
+        g(4)
+        """
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == 2
+    code = """
+        x = 3; 
+        function g(q)
+            {return [1,2,3,q]};
+        g(4)
+        """
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == [1,2,3,4]
+
+def test_evaluate_return_statement():
+    print("test evaluate_return_statement")
+    environment = {}
+    code = """
+        function f() { return };
+        f()
+    """
     result, _ = evaluate(parse(tokenize(code)), environment)
-    result, _ = evaluate(parse(tokenize("x = 4; x = x * 2; q=7; g(5)")), environment)
+    assert result == None
+    code = """
+        function f() { return 2+2 };
+        f()
+    """
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    assert result == 4
+    code = """
+        function f(x) { 
+            if (x > 1) {
+                return 123
+            };
+            return 2+2 
+        };
+        f(7) + f(0)
+    """
+    result, _ = evaluate(parse(tokenize(code)), environment)
+    assert result == 127
+
+
+def test_evaluate_complex_expression():
+    environment = {"x":[2,4,6,8]}
+    code = "x[3]"
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == 8
+
+    environment = {"x": {"a": 3, "b": 4}}
+    code = 'x["b"]'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == 4
+
+    environment = {"x": {"a": [1,2,3], "b": 4}}
+    code = 'x["a"]'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == [1,2,3]
+
+    code = 'x["a"][2]'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == 3
+
+    environment = {"x": [[1,2],[3,4]]}
+    code = 'x[0][1]'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    print(result)
+    assert result == 2
+
+    environment = {"x": {"a":{"x":4,"y":6},"b":{"x":5,"y":7}}}
+    code = 'x["b"]["y"]'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert result == 7
+
+def test_evaluate_complex_assignment():
+    environment = {"x":[1,2,3]}
+    code = 'x[1]=4'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert environment["x"][1] == 4
+
+    environment = {"x":{"a":1,"b":2}}
+    code = 'x["b"]=4'
+    ast = parse(tokenize(code))
+    result, _ = evaluate(ast, environment)
+    assert environment["x"]["b"] == 4
 
 if __name__ == "__main__":
-    # blocks and programs are tested implicitly
-    test_evaluate_complex_expression()
+    # statement_lists and programs are tested implicitly
     test_evaluate_single_value()
     test_evaluate_addition()
     test_evaluate_subtraction()
@@ -411,4 +531,8 @@ if __name__ == "__main__":
     test_evaluate_function_literal()
     test_evaluate_function_call()
     test_evaluate_complex_expression()
+    test_evaluate_complex_assignment()
+    test_evaluate_return_statement()
+    test_evaluate_list_literal()
+    test_evaluate_object_literal()
     print("done.")

@@ -4,8 +4,8 @@ from pprint import pprint
 
 # Trivial imports
 from tokenizer import patterns, tokenize
-from parser import parse_expression, parse
-from evaluator import evaluate, equals
+from parser import statements, parse_expression, parse_statement, parse
+from evaluator import evaluations, evaluate, equals
 
 # Lupa import
 from lupa import LuaRuntime                      # import Lupa upon program startup
@@ -14,10 +14,9 @@ lua = LuaRuntime(unpack_returned_tuples=True)    # Create variable for lua to ru
 """
 TOKENIZER ADDITIONS
 - Add patterns related to Lua into the Tokenizer's patterns list
-- Compile each new addition so they can succeed in a test
+- Compile each new addition into a regular expression
 """
 luaPatterns = [
-    [r"luaRuntime", "luaRuntime"],
     [r"luaEval", "luaEval"]
 ]
 
@@ -29,36 +28,41 @@ for pattern in luaPatterns:
 
 """
 PARSER ADDITIONS
-- Define parse luaEval
-- Rewrite parse_statement to include luaEval
+- Define parse_luaEval_statement
+- Add to statements in parser.py
 """
-
+    
 def parse_luaEval_statement(tokens):
     """
-    print_statement = "print" [ expression ] ;
+    luaEval_statement = "luaEval" "(" [ expression ] ")";
     """
     assert tokens[0]["tag"] == "luaEval"
     tokens = tokens[1:]
-    if tokens[0]["tag"] in ["}", ";", None]:
-        # no expression
-        return {"tag": "luaEval", "value": None}, tokens
-    else:
-        value, tokens = parse_expression(tokens)
-        return {"tag": "luaEval", "value": value}, tokens
+    if tokens[0]["tag"] != "(":
+        raise Exception(f"Expected '(': {tokens[0]}")
+    value, tokens = parse_expression(tokens[1:])
+    if tokens[0]["tag"] != ")":
+        raise Exception(f"Expected ')': {tokens[0]}")
+    tokens = tokens[1:]
+    return {"tag": "luaEval", "value": value}, tokens
 
+statements["luaEval"] = parse_luaEval_statement
 
 """
 EVALUATOR ADDITIONS
-- null
+- Define evaluateLuaEval function in order to execute lua commands
+- Add to evaluations list to be ran inside of evaluate function in evaluator.py
 """
 def evaluateLuaEval(ast, environment):
     if ast["tag"] == "luaEval":
         if ast["value"]:
             value, _ = evaluate(ast["value"], environment)
-            lua.eval(value)
+            object = lua.eval(value)
         else:
-            lua.eval()
-        return None, False
+            object = lua.eval("")
+        return object, False
+
+evaluations["luaEval"] = evaluateLuaEval
 
 """
 TEST FUNCTIONS
@@ -67,7 +71,6 @@ TEST FUNCTIONS
 def testLuaTokens():
     print("testing luaKeywords...")
     for keyword in [
-        "luaRuntime",
         "luaEval"
     ]:
         t = tokenize(keyword)
@@ -75,24 +78,36 @@ def testLuaTokens():
         assert t[0]["tag"] == keyword, f"expected {keyword}, got {t[0]}"
         assert "value" not in t
 
+
+
 def test_parse_luaEval_statement():
     """
     luaEval_statement = "luaEval" [ expression ] ;
     """
     print("testing parse_luaEval_statement...")
-    ast = parse_luaEval_statement(tokenize('luaEval "1+1"'))[0]
+    ast = parse_luaEval_statement(tokenize('luaEval ("1+1")'))[0]
     assert ast == {'tag': 'luaEval', 'value': {'tag': 'string', 'value': '1+1'}}
-    pprint(ast)
+    
+    ast = parse_statement(tokenize('luaEval ("2+2")'))[0]
+    assert ast == {'tag': 'luaEval', 'value': {'tag': 'string', 'value': '2+2'}} 
+
+    ast = parse_statement(tokenize('luaEval ("\'abc\'")'))[0]
+    
 
 def test_evaluate_luaEval():
-    print("test evaluate_luaEval_statement")
-    #pprint(tokenize("luaEval 1+1"))
-    #equals("luaEval 77", {}, None, {})
-    #equals("luaEval", {}, None, {})
-    #equals("luaEval 50+7", {}, None, {})
-    #equals("luaEval 50+8", {}, None, {})
+    print("test evaluate_luaEval_statement...")
+    equals('luaEval("1+1")', {}, 2, {})
+    equals('luaEval("")', {}, None, {})
+    equals('luaEval ("50*4")', {}, 200, {})
+    equals('luaEval ("\'abc\'")', {}, "abc", {})
 
-if __name__ == "__main__":
+
+print("trivialLua imported successfully!")
+
+def testFunctions():
     testLuaTokens()
     test_parse_luaEval_statement()
     test_evaluate_luaEval()
+
+if __name__ == "__main__":
+    testFunctions()

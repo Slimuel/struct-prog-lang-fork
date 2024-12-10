@@ -1,7 +1,10 @@
+import importlib
 from tokenizer import tokenize
 from parser import parse
 from pprint import pprint
 
+# ADDED: evaluations dictionary for adding external functions
+evaluations = {} 
 
 def evaluate(ast, environment):
     if ast["tag"] == "number":
@@ -214,6 +217,17 @@ def evaluate(ast, environment):
             value, return_chain = evaluate(ast["value"], environment)
             return value, True
         return None, True
+    
+    if ast["tag"] == "import":
+        if ast["value"]:
+            value, _ = evaluate(ast["value"], environment)
+            return importlib.import_module(value), True
+        else:
+            print("Unknown file.")
+        return None, False
+    
+    for tag in evaluations:
+        return evaluations[tag](ast, environment)
 
     assert False, f"Unknown tag [{ast['tag']}] in AST"
 
@@ -516,6 +530,15 @@ def test_evaluate_complex_assignment():
     result, _ = evaluate(ast, environment)
     assert environment["x"]["b"] == 4
 
+def test_evaluate_import_statement():
+    print("test evaluate_import_statement")
+    environment = {}
+    code = 'import "trivialLua"'
+    ast = parse(tokenize(code))
+    module, _ = evaluate(ast, environment)
+    module.testFunctions()
+
+
 if __name__ == "__main__":
     # statement_lists and programs are tested implicitly
     test_evaluate_single_value()
@@ -535,4 +558,5 @@ if __name__ == "__main__":
     test_evaluate_return_statement()
     test_evaluate_list_literal()
     test_evaluate_object_literal()
+    test_evaluate_import_statement()
     print("done.")

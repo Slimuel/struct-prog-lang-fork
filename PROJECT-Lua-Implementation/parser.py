@@ -1022,6 +1022,28 @@ def test_parse_function_statement():
         },
     }
 
+def parse_import_statement(tokens):
+    """
+    import_statement = "import" [ expression ] ;
+    """
+    assert tokens[0]["tag"] == "import"
+    tokens = tokens[1:]
+    if tokens[0]["tag"] in ["}", ";", None]:
+        # no expression
+        return {"tag": "import", "value": None}, tokens
+    else:
+        value, tokens = parse_expression(tokens)
+        return {"tag": "import", "value": value}, tokens
+
+# Statement list for parse statement. That way more statements can be added to the parser
+statements = {
+    "if" : parse_if_statement,
+    "while" : parse_while_statement, 
+    "function" : parse_function_statement,
+    "return" : parse_return_statement, 
+    "print" : parse_print_statement,
+    "import" : parse_import_statement
+}
 
 def parse_statement(tokens):
     """
@@ -1031,18 +1053,10 @@ def parse_statement(tokens):
     # note: none of these consumes a token
     # if tag == "{":
     #     return parse_statement_list(tokens)
-    if tag == "if":
-        return parse_if_statement(tokens)
-    if tag == "while":
-        return parse_while_statement(tokens)
-    if tag == "function":
-        return parse_function_statement(tokens)
-    if tag == "return":
-        return parse_return_statement(tokens)
-    if tag == "print":
-        return parse_print_statement(tokens)
-    return parse_assignment_statement(tokens)
 
+    if tag in statements:
+        return statements[tag](tokens)
+    return parse_assignment_statement(tokens)
 
 def test_parse_statement():
     """
@@ -1069,6 +1083,11 @@ def test_parse_statement():
     assert (
         parse_statement(tokenize("print 1"))[0]
         == parse_print_statement(tokenize("print 1"))[0]
+    )
+    # ADDED: import statement
+    assert (
+        parse_statement(tokenize('import "file.py"'))[0]
+        == parse_import_statement(tokenize('import "file.py"'))[0]
     )
     # function_statement (syntactic sugar)
     assert (

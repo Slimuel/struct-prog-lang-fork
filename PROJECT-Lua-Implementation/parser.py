@@ -1022,6 +1022,7 @@ def test_parse_function_statement():
         },
     }
 
+# ADDED: Parser for import statements
 def parse_import_statement(tokens):
     """
     import_statement = "import" [ expression ] ;
@@ -1035,7 +1036,7 @@ def parse_import_statement(tokens):
         value, tokens = parse_expression(tokens)
         return {"tag": "import", "value": value}, tokens
 
-# Statement list for parse statement. That way more statements can be added to the parser
+# ADDED: Statement list for parse statement. That way more statements can be added to the parser
 statements = {
     "if" : parse_if_statement,
     "while" : parse_while_statement, 
@@ -1054,6 +1055,8 @@ def parse_statement(tokens):
     # if tag == "{":
     #     return parse_statement_list(tokens)
 
+    # ADDED: Instead of going through an if statement for each function, use one if statement to find if the tag
+    #        is in the statements list. 
     if tag in statements:
         return statements[tag](tokens)
     return parse_assignment_statement(tokens)

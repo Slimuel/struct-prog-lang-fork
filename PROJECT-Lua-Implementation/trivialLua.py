@@ -4,7 +4,7 @@ from pprint import pprint
 
 # Trivial imports
 from tokenizer import patterns, tokenize
-from parser import statements, parse_expression, parse_statement, parse
+from parser import statements, parse_expression, parse_statement
 from evaluator import evaluations, evaluate, equals
 
 # Lupa import
@@ -66,7 +66,7 @@ evaluations["luaEval"] = evaluateLuaEval
 
 """
 TEST FUNCTIONS
-- Runs when library is run by itself to ensure all features are working properly
+- Test functions that ensure that features added to the tokenizer, parser, and evaluator are working properly
 """
 def testLuaTokens():
     print("testing luaKeywords...")
@@ -77,8 +77,6 @@ def testLuaTokens():
         assert len(t) == 2
         assert t[0]["tag"] == keyword, f"expected {keyword}, got {t[0]}"
         assert "value" not in t
-
-
 
 def test_parse_luaEval_statement():
     """
@@ -101,13 +99,13 @@ def test_evaluate_luaEval():
     equals('luaEval ("50*4")', {}, 200, {})
     equals('luaEval ("\'abc\'")', {}, "abc", {})
 
-
-print("trivialLua imported successfully!")
-
 def testFunctions():
     testLuaTokens()
     test_parse_luaEval_statement()
     test_evaluate_luaEval()
+
+# Print statement that tells user that the package is imported properly.
+print("trivialLua imported successfully!")
 
 if __name__ == "__main__":
     testFunctions()

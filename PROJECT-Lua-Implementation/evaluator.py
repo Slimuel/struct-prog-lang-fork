@@ -218,10 +218,11 @@ def evaluate(ast, environment):
             return value, True
         return None, True
     
+    # ADDED: Import statement evaluation
     if ast["tag"] == "import":
         if ast["value"]:
             value, _ = evaluate(ast["value"], environment)
-            return importlib.import_module(value), True
+            return importlib.import_module(value), False
         else:
             print("Unknown file.")
         return None, False
@@ -530,12 +531,14 @@ def test_evaluate_complex_assignment():
     result, _ = evaluate(ast, environment)
     assert environment["x"]["b"] == 4
 
+# ADDED: Test for import statement (as well as trivialLua)
 def test_evaluate_import_statement():
     print("test evaluate_import_statement")
     environment = {}
     code = 'import "trivialLua"'
     ast = parse(tokenize(code))
     module, _ = evaluate(ast, environment)
+    print("test module code:")
     module.testFunctions()
 
 
